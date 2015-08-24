@@ -2,13 +2,13 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package mainlab;
+package mainlab.entity;
 
 /**
  *
- * @author Елена
+ * @author TofixXx
  */
-public enum Pole {
+public enum MapCell {
 
     EMPTY,
     WALL,

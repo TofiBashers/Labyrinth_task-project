@@ -1,9 +1,9 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package mainlab;
-//import mainlab.*;
+
+import mainlab.entity.MapCell;
+import mainlab.entity.Point;
+import mainlab.entity.Edge;
+import gui.MainFrame;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -13,136 +13,100 @@ import java.lang.*;
 
 /**
  *
- * @author Zhestkov
+ * @author TofixXx
  */
-/*
- class Edge implements Comparable<Edge> {
- Point a;
- Point b;
- int length;
- double pheromone = 5; // начальное кол-во феромонов на всех ребрах
-    
- Edge(Point a, Point b, int length) {
- this.a = a;
- this.b = b;
- this.length = length;
- }
-    
-    
- public int compareTo(Edge o) {
- int comp_len;
- if (length > o.length)
- comp_len = 1;
- else if (length < o.length)
- comp_len = -1; 
- else
- comp_len = 0; // равны
- return comp_len;
- }
-    
-    
- }
- */
-/*class MyComparator implements Comparator<Edge> {
- public int compare(Edge o1, Edge o2) {
- return o1.compareTo(o2);
- }
- }
+
+/** Реалиазция задачи поиска глобального пути с помощью алгоритма 
+ * муравьиной колонии. Алгоритм оптимизирован под задачу поиска
+ * пути на графе, где ребро - это путь от одной лямбды (т.е., вершины)
+ * до другой, с учётом состояния поля.
+ * В ходе обхода муравьём, пополняется общий список
+ * рёбер (Edge), а также модифицируются их эвристические параметры.
+ * При поиске, с каждой новой итерацией, эвристические параметры рёбер,
+ * постепенно, сходятся к одному пути. Точность пути, а также их разброс при 
+ * N запусках поиска, зависит от количества итераций
+ * 
  */
 public class AntSystem {
 
-    static final int numAnts = 10; // количество муравьев(итераций)
-    static final double ALPHA = 0.5;
-    static final double BETA = 0.5;
-    public static List<Point> vertexes; // список лямбд // позиция меняется //возможно, в списке должны быть начальное положение робота и лифт
-    public Point Lift;
-    public ArrayList<Edge> edges; // список ребер, участвующих в пути
-    //public static List<Ant> ants; // список муравьев
-    //public int num_ants = lambdas.size() * lambdas.size(); // кол-во муравьев
-    Labirynth labir;
+    private static final int numAnts = 100; // количество муравьев(итераций)
+    private static final double ALPHA = 0.5;
+    private static final double BETA = 0.5;
+    private static List<Point> vertexes; // список лямбд 
+    private Point lift;
+    private ArrayList<Edge> edges; // список ребер, участвующих в пути
+    private Labyrinth labyrinth;
 
-    public AntSystem(Labirynth labir) {
-        this.labir = new Labirynth(labir);
+    public AntSystem(Labyrinth labyrinth) {
+        this.labyrinth = new Labyrinth(labyrinth);
         vertexes = new ArrayList();
         edges = new ArrayList();
         this.checkLambda();
     }
 
-    public void checkLambda() {
-        for (int i = 0; i < labir.height; ++i) {
-            for (int j = 0; j < labir.width; ++j) {
-                if (labir.laba[i][j] == Pole.LAMBDA || labir.laba[i][j] == Pole.CLOSEDLIFT) {
+    public final void checkLambda() {
+        for (int i = 0; i < labyrinth.height; ++i) {
+            for (int j = 0; j < labyrinth.width; ++j) {
+                if (labyrinth.map[i][j] == MapCell.LAMBDA
+                        || labyrinth.map[i][j] == MapCell.CLOSEDLIFT) {
                     Point t = new Point(i, j);
                     vertexes.add(t);
                 }
-                if(labir.laba[i][j] == Pole.CLOSEDLIFT)
-                {
-                    Lift = new Point(i, j);
+                if (labyrinth.map[i][j] == MapCell.CLOSEDLIFT) {
+                    lift = new Point(i, j);
                 }
             }
         }
     }
 
     private class Ant {
-        //Position AntPos;
-      /*int x;
-         int y;*/
+
         List<Point> lambdasAnt;
-        Labirynth labAnt;
+        Labyrinth labAnt;
         public ArrayList<Edge> path; // каждый муравей хранит свой путь(лямбды)
-        //...public double pathLength; // длина пути
-        //public Edge next; // следующее предполагаемое по вероятности ребро
 
         Ant() {
-            //AntPos = new Position(RobotPosition.x, RobotPosition.y);
             lambdasAnt = new ArrayList();
             lambdasAnt.addAll(vertexes);
             path = new ArrayList();
-            labAnt = new Labirynth(labir);
+            labAnt = new Labyrinth(labyrinth);
         }
 
-        public void UpdateFerromones() {
-                //идёт перебор рёбер из общего списка, на каждом ребре колиество ферромонов уменьшается
-                for (int i = 0; i < edges.size(); i++) {
-                    if (edges.get(i).ferromonNumber > 1) 
-                    {
-                        edges.get(i).ferromonNumber--;
-                    }
+        public void updateFerromones() {
+            //идёт перебор рёбер из общего списка, на каждом ребре колиество ферромонов уменьшается
+            for (Edge edge : edges) {
+                if (edge.ferromonNumber > 1) {
+                    edge.ferromonNumber--;
                 }
-                //далее нужно просто прибавить ко всему пути ферромоны, а затем добавить все рёбра пути в общий список
-                for (int i = 0; i < path.size(); i++) {
-                    path.get(i).ferromonNumber++;
-                    edges.add(path.get(i));
-                }
+            }
+            //далее нужно просто прибавить ко всему пути ферромоны, а затем добавить все рёбра пути в общий список
+            for (Edge pathEdge : path) {
+                pathEdge.ferromonNumber++;
+                edges.add(pathEdge);
+            }
             //повторный перебор пути, рёбра. которых ещё нет в общеем списке, добавляются в него
-            for (int i = 0; i < path.size(); i++) {
-                path.get(i).ferromonNumber++;
-                edges.add(path.get(i));
+            for (Edge pathEdge : path) {
+                pathEdge.ferromonNumber++;
+                edges.add(pathEdge);
             }
         }
-        /*
-         * Не умеет обрабатывать случаи с недоступными лямбдами
-         */
 
-        public ArrayList<Edge> MakePath() throws CloneNotSupportedException {
+        public ArrayList<Edge> makePath() {
             lambdasAnt.remove(new Point(labAnt.robotPosition.x, labAnt.robotPosition.y));//сразу удаляем точку старта робота
             //1) обход всех лямбд
             do {
                 System.out.println("Размер списка вершин: " + lambdasAnt.size());
                 Edge TryEdge = checkProbability();
-                if(TryEdge == null)
-                {
+                if (TryEdge == null) {
                     return path;
                 }
                 Edge ChosenEdge = new Edge(TryEdge);
-                for (int i = ChosenEdge.Path.size() - 2; i >= 0; i--) {
-                    if(labAnt.laba[ChosenEdge.Path.get(i).x][ChosenEdge.Path.get(i).y] == Pole.LAMBDA)
-                    {
-                        lambdasAnt.remove(new Point(ChosenEdge.Path.get(i).x, ChosenEdge.Path.get(i).y));
+                for (int i = ChosenEdge.path.size() - 2; i >= 0; i--) {
+                    if (labAnt.map[ChosenEdge.path.get(i).x][ChosenEdge.path.get(i).y] == MapCell.LAMBDA) {
+                        lambdasAnt.remove(new Point(ChosenEdge.path.get(i).x, ChosenEdge.path.get(i).y));
                     }
-                    labAnt.stepToPos(ChosenEdge.Path.get(i).x, ChosenEdge.Path.get(i).y);
-                    /* пока этим способом можно почти решить проблему
-                     * случайного прохода лямбд. В будущем - обязательно
+                    labAnt.stepToPos(ChosenEdge.path.get(i).x, ChosenEdge.path.get(i).y);
+                    /* TODO: В будущем - обязательно
                      * убрать список лямбд в лабиринт, уже там регулировать всё это дело
                      */
                     labAnt.updateMap();
@@ -150,91 +114,79 @@ public class AntSystem {
                 lambdasAnt.remove(ChosenEdge.end);//удаляем из списка ту лямбду, в которую пришли
                 path.add(ChosenEdge);
             } while (!lambdasAnt.isEmpty());
-            UpdateFerromones();
+            updateFerromones();
             return path;
         }
-        //возможно, точку, передаваемую в этот метод, нужно заменить на текущую позицию робота
 
-        public ArrayList<Edge> checkDistance(Pole NowField[][]) throws CloneNotSupportedException {
-            /**
-             * выдает список ребер(путей) от выбранной лямбды до других сначала
-             * нужно перебирать все лямбды кроме этой, затем проверять, есть ли
-             * рёбро между этими двумя вершинами в списке, если есть, то
-             * добавлять в соотв список, если нету - генерировать его локальным
-             * поиском
-             */
+        /**
+         * Выдает список ребер(путей) от выбранной лямбды до других. Cначала
+         * перебираются все лямбды кроме заданной, затем проверяется, есть ли
+         * рёбро между этими двумя вершинами в списке, если есть, то добавляется
+         * в соотв список, если нету - генерировать его локальным поиском.
+         */
+        public ArrayList<Edge> checkDistance(MapCell NowField[][]) {
+
             ArrayList<Edge> list = new ArrayList<Edge>();
             System.out.println("Список вершин: ");
-            for(int i = 0; i < lambdasAnt.size(); i++)
-            {
+            for (int i = 0; i < lambdasAnt.size(); i++) {
                 System.out.println(lambdasAnt.get(i).x + " " + lambdasAnt.get(i).y);
             }
             for (Point p : lambdasAnt) {
-                if (p.equals(new Point(labAnt.robotPosition.x, labAnt.robotPosition.y)))
-                {
+                if (p.equals(new Point(labAnt.robotPosition.x, labAnt.robotPosition.y))) {
                     System.out.println("Попытка хода в текущюю точку блокирована");
                     continue;
                 }
-                if (p.equals(Lift) && lambdasAnt.size() != 1) {
+                if (p.equals(lift) && lambdasAnt.size() != 1) {
                     System.out.println("Попытка пройти к заврытому лифту блокирована");
                     continue;
                 }
-                for (int i = 0; i < edges.size(); i++) {
-                    if (edges.get(i).begin.equals(new Point(labAnt.robotPosition.x, labAnt.robotPosition.y)) && edges.get(i).end.equals(p) && edges.get(i).PoleEquals(NowField)) {
+                for (Edge edge : edges) {
+                    if (edge.begin.equals(new Point(labAnt.robotPosition.x, labAnt.robotPosition.y)) && edge.end.equals(p) && edge.fieldEquals(NowField)) {
                         System.out.println("Добавление ребра из списка существующих рёбер");
-                        list.add(edges.get(i));
-                        continue;
+                        list.add(edge);
                     }
                 }
-                //итерацию вынести в самостоятельный класс, если это возможно!!!
-                Labirynth labAntForIt = new Labirynth(labAnt);
-                mainlab.LocalSearch.LocalSearchIteration localSearchIteration;
-                localSearchIteration = new mainlab.LocalSearch.LocalSearchIteration();
-                for(int i = 0; i < 8; i++)
-                {
+
+                Labyrinth labAntForIt = new Labyrinth(labAnt);
+                LocalSearchIteration localSearchIteration = new LocalSearchIteration();
+                for (int i = 0; i < 8; i++) {
                     System.out.println();
                 }
-                System.out.println("Создание нового ребра из точки : " + labAnt.robotPosition.x + " " + labAnt.robotPosition.y + " в точку: " + p.x + " " + p.y);
+                System.out.println("Создание нового ребра из точки : "
+                        + labAnt.robotPosition.x
+                        + " " + labAnt.robotPosition.y
+                        + " в точку: " + p.x + " " + p.y);
                 Edge makedEdge = localSearchIteration.makeEdge(new Point(labAnt.robotPosition.x, labAnt.robotPosition.y), p, labAntForIt);
-                if(makedEdge == null)
-                {
+                if (makedEdge == null) {
                     continue;
                 }
                 list.add(makedEdge);
-                /*if (p.begin == t && p.PoleEquals(NowField)) {
-                 list.add(p);
-                 }*/
                 System.out.println("Размер списка вершин: " + lambdasAnt.size());
                 System.out.println("Размер списка возможных путей: " + list.size());
             }
-            if(list.isEmpty())
-            {
+            if (list.isEmpty()) {
                 System.out.println("Список пуст!");
             }
             return list;
         }
 
-        public double getProbability(Edge e, ArrayList<Edge> incidentEdges) throws CloneNotSupportedException {
+        public double getProbability(Edge e, ArrayList<Edge> incidentEdges) {
             //if (ant.x == e.a.x && ant.y == e.a.y){
-            double selected_edge_prob = Math.pow(e.ferromonNumber, ALPHA) * Math.pow(1/(e.Path.size()) + 1, BETA);
+            double selected_edge_prob = Math.pow(e.ferromonNumber, ALPHA) * Math.pow(1 / (e.path.size()) + 1, BETA);
             double edges_sum = 0;
 
             for (Edge t : incidentEdges) {
                 if (!path.contains(t)) {
-                    edges_sum += Math.pow(e.ferromonNumber, ALPHA) * Math.pow(1/(e.Path.size()) + 1, BETA);
+                    edges_sum += Math.pow(e.ferromonNumber, ALPHA) * Math.pow(1 / (e.path.size()) + 1, BETA);
                 }
             }
             return selected_edge_prob / edges_sum;
-            /*}
-             return 0; //если муравей ant не находится в точке e.a и не может за 1 шаг пройти ребро e*/
-            // или кидать какое-то исключение
         }
 
-        public Edge checkProbability() throws CloneNotSupportedException {
+        public Edge checkProbability() {
             ArrayList<Edge> lst = new ArrayList();
-            lst.addAll(checkDistance(labAnt.laba));
-            if(lst.isEmpty())
-            {
+            lst.addAll(checkDistance(labAnt.map));
+            if (lst.isEmpty()) {
                 return null;
             }
             int n = lst.size();
@@ -255,162 +207,13 @@ public class AntSystem {
             return lst.get(j);
         }
     }
-    //  public boolean isDone(int left_lambdas) {
-    //      return (left_lambdas == 0);
-    //  }
 
-    /*public static int distance(Point a, Point b) {
-     int t1 = (a.x - b.x) * (a.x - b.x);
-     int t2 = (a.y - b.y) * (a.y - b.y);
-     return t1 + t2;
-     }*/
-    /*public Point checkRobot(Pole[][] field, int width, int height) {
-     Point r = null;
-     for (int i = 0; i < width; ++i)
-     for (int j = 0; j < height; ++j)
-     if (field[i][j] == Pole.ROBOT)
-     r = new Point(i, j);
-     return r;
-     }*/
-    /*public void stepmove(Ant ant, Pole[][] field, int width, int height) {
-        //ant.x = checkRobot(field, width, height).x;
-        //ant.y = checkRobot(field, width, height).y;
-        Point t = new Point(ant.x, ant.y);
-        //ant.path.add(t);
-        MyComparator comp = new MyComparator();
-        LinkedList<Edge> cur_point = checkDistance(t);
-        Collections.sort(cur_point, comp); // сортировка списка cur_point по расстояниям
-        Point next = cur_point.getFirst().b;
+    public ArrayList<Edge> searchOptimalPath() {
+        for (int i = 0; i < numAnts - 1; i++) {
+            new Ant().makePath();
+        }
+        return new Ant().makePath();
     }
 
-    public void test() {
-        Point p1 = new Point(2, 3);
-        Point p2 = new Point(5, 7);
-        vertexes.add(p1);
-        vertexes.add(p2);
-        Edge t = new Edge(vertexes.get(0), vertexes.get(1), distance(vertexes.get(0), vertexes.get(1)));
-        edges.add(t);
-    }*/
-
-    public void AntTest() throws CloneNotSupportedException {
-        Ant TestAnt = new Ant();
-        ArrayList<Edge> Path = new ArrayList();
-        Path.addAll(TestAnt.MakePath());
-        for(int i = 0; i < Path.size(); i++)
-        {
-            for(int j = Path.get(i).Path.size()-1; j > 0; j--)
-            {
-                System.out.println(Path.get(i).Path.get(j).x + " " + Path.get(i).Path.get(j).y);
-            }
-        }
-        labir.showPole();
-        for(int i = 0; i < Path.size(); i++)
-        {
-            for(int j = Path.get(i).Path.size()-1; j > 0; j--)
-            {
-                if(i == 0 && j == Path.get(i).Path.size()-1)
-                {
-                    continue;
-                }
-                labir.stepToPos(Path.get(i).Path.get(j).x, Path.get(i).Path.get(j).y);
-                labir.updateMap();
-                labir.showPole();
-            }
-        }
-          //ход в выход
-        if(labir.laba[Path.get(Path.size() - 1).Path.get(0).x][Path.get(Path.size() - 1).Path.get(0).y] != Pole.OPENEDLIFT)
-        {
-            labir.stepToPos(Path.get(Path.size() - 1).Path.get(0).x, Path.get(Path.size() - 1).Path.get(0).y);
-            labir.updateMap();
-            labir.showPole();
-            labir.MakeAborted();
-        } 
-        else
-        {
-            labir.stepToPos(Path.get(Path.size() - 1).Path.get(0).x, Path.get(Path.size() - 1).Path.get(0).y);
-            labir.updateMap();
-            labir.showPole();
-        }
-    }
-    public void SearchOptimalPath() throws CloneNotSupportedException, IOException
-    {
-        int NumEqualsPaths = 0;
-        ArrayList<Edge> MainPath = new ArrayList();
-        for(int i =0; i<30; i++)
-        {
-            Ant ant = new Ant();
-            ArrayList<Edge> NowPath = new ArrayList();
-            NowPath.addAll(ant.MakePath());
-            if(i == 29)
-            {
-                MainPath.addAll(NowPath);
-            }
-        }
-        MainFrame mainFrame = new MainFrame("robot", labir, MainPath);
-        WritePathToFile(MainPath);
-    }
-    public void WritePathToFile(ArrayList<Edge> Path) throws IOException
-    {
-        File file = new File("result.txt");
-        FileWriter writer = new FileWriter(file);
-        Point pastPoint = Path.get(0).begin;
-         for(int i = 0; i < Path.size(); i++)
-        {
-            for(int j = Path.get(i).Path.size()-1; j >= 0; j--)
-            {
-                if(i == 0 && j == Path.get(i).Path.size()-1)
-                {
-                    continue;
-                }
-                if(pastPoint.x == Path.get(i).Path.get(j).x && pastPoint.y < Path.get(i).Path.get(j).y)
-                {
-                    writer.append('R');
-                    writer.flush();
-                }
-                else if(pastPoint.x == Path.get(i).Path.get(j).x && pastPoint.y > Path.get(i).Path.get(j).y)
-                {
-                    writer.append('L');
-                    writer.flush();
-                }
-                else if(pastPoint.x > Path.get(i).Path.get(j).x && pastPoint.y == Path.get(i).Path.get(j).y)
-                {
-                    writer.append('U');
-                    writer.flush();
-                }
-                else if(pastPoint.x < Path.get(i).Path.get(j).x && pastPoint.y == Path.get(i).Path.get(j).y)
-                {
-                    writer.append('D');
-                    writer.flush();
-                }
-                else
-                {
-                    continue;
-                }
-                pastPoint = Path.get(i).Path.get(j);
-            }
-        }
-        
-    }
 }
 
-
-/*class lambda {
- public int x, y;
- public ArrayList<range> distances;
- lambda(Point p) {
- this.x = p.x;
- this.y = p.y;
- }
- public void setDistance() {
- // int sz = AntSystem.lambdas.size();
-     
- for (Point p : AntSystem.lambdas) {
- lambda to = new lambda(p);
- range r = new range(this,to, AntSystem.distance());
-                    
- }
- }
- }
-    
- }
- */

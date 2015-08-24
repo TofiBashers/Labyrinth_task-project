@@ -1,8 +1,5 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-package mainlab;
+
+package gui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -17,28 +14,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import mainlab.entity.Edge;
+import mainlab.Labyrinth;
 
 /**
  *
  * @author Елена
  */
 public class MainFrame extends JFrame{
-//    MainFrame(String s, Labirynth lab) {
-//        super(s);
-//    
-//    setSize(lab.height*48+100, lab.width*48+100);
-//    setVisible(true);
-//    JPanel panel = new MainPanel(lab);
-//    this.add(panel);
-//    
-//    addWindowListener(new WindowAdapter() {
-//        public void windowClosing(WindowEvent e){
-//            System.exit(0);
-//        }
-//    });
-//}
+
 final JPanel mainPanel;
-  MainFrame(String s, final Labirynth lab, ArrayList<Edge> OptimalPath){ 
+  public MainFrame(String s, final Labyrinth lab, ArrayList<Edge> OptimalPath){ 
     super(s);
     setSize(lab.width*48+215, lab.height*48+66);
     setVisible(true);
